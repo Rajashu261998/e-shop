@@ -47,11 +47,32 @@ const updateProduct = async (req,res)=>{
     })
 }
 
-// delete Product
+// delete Product --Admin
+
+const deleteProduct = async (req,res)=>{
+
+    const product = await ProductModel.findById(req.params.id)
+
+
+    if(!product){
+        return res.status(500).json({
+            success:false,
+            message:"Product not found"
+        })
+    }
+
+    await product.remove()
+
+    res.status(200).json({
+        success:true,
+        message:"Product Deleted"
+    })
+}
 
 
 module.exports={
     createProduct,
     getAllProducts,
-    updateProduct
+    updateProduct,
+    deleteProduct
 }
