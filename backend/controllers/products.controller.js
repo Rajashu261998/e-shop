@@ -70,9 +70,31 @@ const deleteProduct = async (req,res)=>{
 }
 
 
+// get single product details
+
+const getSingleProduct = async (req,res,next)=>{
+
+    const product = await ProductModel.findById(req.params.id)
+
+    if(!product){
+        return res.status(500).json({
+            success:false,
+            message:"Product not found"
+        })
+    }
+
+    res.status(200).json({
+        success:true,
+        product
+    })
+
+}
+
+
 module.exports={
     createProduct,
     getAllProducts,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    getSingleProduct
 }
