@@ -48,12 +48,25 @@ const loginUser = catchErrorMiddleware( async (req,res,next)=>{
         return next(new ErrorHandler("Invalid email or passworrd",401))
     }
 
-    const token = user.getJWTToken()
 
     sendToken(user,200,res)
 })
 
+// logout
+
+const logout = catchErrorMiddleware(async (req, res, next) => {
+    res.cookie("token", null, {
+      expires: new Date(Date.now()),
+      httpOnly: true,
+    });
+  
+    res.status(200).json({
+      success: true,
+      message: "Logged Out",
+    });
+})
+
 module.exports = {
 
-    registerUser,loginUser
+    registerUser,loginUser,logout
 }
