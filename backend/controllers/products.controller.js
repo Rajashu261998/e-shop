@@ -1,40 +1,40 @@
+const catchErrorMiddleware = require("../middleware/catchError.middleware")
 const { ProductModel } = require("../models/product.model")
+const ApiFeatures = require("../utils/apiFeatures")
+const { ErrorHandler } = require("../utils/erroHandler")
 
 
 
 // create products --Admin
-const createProduct = async (req,res,next)=>{
+const createProduct = catchErrorMiddleware(async (req,res,next)=>{
     const product = await ProductModel.create(req.body)
 
     res.status(200).json({
         success:true,
         product
     })
-}
+})
 
-// get all products
+// get all products --Admin
 
-const getAllProducts = async (req,res)=>{
-
-    const products = await ProductModel.find()
+const getAllProducts = catchErrorMiddleware(async (req,res,next)=>{
+    const apiFeature = new ApiFeatures(ProductModel.find(), req.query).search().filter()
+    let products = await apiFeature.query
     res.status(200).json({
         success:true,
         products
     })
-}
+})
 
 
 // update product --Admin
 
-const updateProduct = async (req,res)=>{
+const updateProduct = catchErrorMiddleware(async (req,res,next)=>{
 
-    let product = ProductModel.findById(req.params.id)
+    let product = await ProductModel.findById(req.params.id)
 
     if(!product){
-        return res.status(500).json({
-            success:false,
-            message:"Product not found"
-        })
+        return next(new ErrorHandler("Product not found", 404))
     }
     product = await ProductModel.findByIdAndUpdate(req.params.id, req.body,{
         new:true,
@@ -45,20 +45,17 @@ const updateProduct = async (req,res)=>{
         success:true,
         product
     })
-}
+})
 
 // delete Product --Admin
 
-const deleteProduct = async (req,res)=>{
+const deleteProduct = catchErrorMiddleware(async (req,res,next)=>{
 
     const product = await ProductModel.findById(req.params.id)
 
 
     if(!product){
-        return res.status(500).json({
-            success:false,
-            message:"Product not found"
-        })
+        return next(new ErrorHandler("Product not found", 404))
     }
 
     await product.remove()
@@ -67,20 +64,17 @@ const deleteProduct = async (req,res)=>{
         success:true,
         message:"Product Deleted"
     })
-}
+})
 
 
 // get single product details
 
-const getSingleProduct = async (req,res,next)=>{
+const getSingleProduct = catchErrorMiddleware(async (req,res,next)=>{
 
     const product = await ProductModel.findById(req.params.id)
 
     if(!product){
-        return res.status(500).json({
-            success:false,
-            message:"Product not found"
-        })
+        return next(new ErrorHandler("Product not found", 404))
     }
 
     res.status(200).json({
@@ -88,7 +82,7 @@ const getSingleProduct = async (req,res,next)=>{
         product
     })
 
-}
+})
 
 
 module.exports={
