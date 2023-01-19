@@ -59,10 +59,21 @@ userSchema.pre("save", async function (next){
 // JWT Token
 
 userSchema.methods.getJWTToken = function () {
-    return jwt.sign({id: this._id}, process.env.JWT_SECRET,{
-        expireIn: process.env.JWT_EXPIRE
-    })
-}
+    return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE,
+    });
+  };
+
+// userSchema.methods.getJWTToken = function () {
+//     return jwt.sign({id: this._id}, process.env.JWT_SECRET)
+// }
+
+// compare password
+userSchema.methods.comparePassword = async function (password) {
+    return await bcrypt.compare(password, this.password);
+  };
+
+
 
 const UserModel = mongoose.model("users",userSchema)
 

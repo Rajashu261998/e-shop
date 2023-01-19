@@ -1,6 +1,7 @@
-const { ErrorHandler } = require("../utils/erroHandler")
+const  ErrorHandler = require("../utils/erroHandler")
 const catchErrorMiddleware = require("../middleware/catchError.middleware")
 const {UserModel} = require("../models/user.model")
+const sendToken = require("../utils/jwtToken")
 
 
 // registration form ---user
@@ -18,13 +19,41 @@ const registerUser = catchErrorMiddleware( async (req,res,next)=>{
         }
     })
 
-    const token = user.getJWTToken()
-
-    res.status(200).json({
-        success:true,
-        token
-    })
+   sendToken(user,201,res)
 
 })
 
-module.exports = registerUser
+// Login user
+
+const loginUser = catchErrorMiddleware( async (req,res,next)=>{
+
+    const {email,password} = req.body
+
+    // checking if uer given password and email both
+
+    if(!email || !password){
+        return next(new ErrorHandler("Please enter email and password",400))
+    }
+
+    const user =await UserModel.findOne({email}).select("+password")
+
+    if(!user){
+        return next(new ErrorHandler("Invalid email or password",401))
+
+    }
+
+    const isPasswordMatched =await user.comparePassword(password)
+
+    if(!isPasswordMatched){
+        return next(new ErrorHandler("Invalid email or passworrd",401))
+    }
+
+    const token = user.getJWTToken()
+
+    sendToken(user,200,res)
+})
+
+module.exports = {
+
+    registerUser,loginUser
+}
