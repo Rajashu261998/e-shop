@@ -18,7 +18,12 @@ const createProduct = catchErrorMiddleware(async (req,res,next)=>{
 // get all products --Admin
 
 const getAllProducts = catchErrorMiddleware(async (req,res,next)=>{
-    const apiFeature = new ApiFeatures(ProductModel.find(), req.query).search().filter()
+    const resultPerPage = 5
+
+    const apiFeature = new ApiFeatures(ProductModel.find(), req.query)
+    .search()
+    .filter()
+    .pagination(resultPerPage)
     let products = await apiFeature.query
     res.status(200).json({
         success:true,
