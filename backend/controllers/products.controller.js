@@ -1,101 +1,268 @@
-const catchErrorMiddleware = require("../middleware/catchError.middleware")
-const { ProductModel } = require("../models/product.model")
-const ApiFeatures = require("../utils/apiFeatures")
-const { ErrorHandler } = require("../utils/erroHandler")
+const {ProductModel} = require("../models/product.model")
 
 
+const ApiFeatures = require("../utils/apifeatures");
+const cloudinary = require("cloudinary");
+const catchErrorMiddleware = require("../middleware/catchError.middleware");
+const ErrorHandler = require("../utils/erroHandler");
 
-// create products --Admin
-const createProduct = catchErrorMiddleware(async (req,res,next)=>{
-    const product = await ProductModel.create(req.body)
+// Create Product -- Admin
+exports.createProduct = catchErrorMiddleware(async (req, res, next) => {
+  let images = [];
 
-    res.status(200).json({
-        success:true,
-        product
-    })
-})
+  if (typeof req.body.images === "string") {
+    images.push(req.body.images);
+  } else {
+    images = req.body.images;
+  }
 
-// get all products 
+  const imagesLinks = [];
 
-const getAllProducts = catchErrorMiddleware(async (req,res,next)=>{
-    const resultPerPage = 5
-    const productCount = await ProductModel.countDocuments()
+  for (let i = 0; i < images.length; i++) {
+    const result = await cloudinary.v2.uploader.upload(images[i], {
+      folder: "products",
+    });
 
-    const apiFeature = new ApiFeatures(ProductModel.find(), req.query)
+    imagesLinks.push({
+      public_id: result.public_id,
+      url: result.secure_url,
+    });
+  }
+
+  req.body.images = imagesLinks;
+  req.body.user = req.user.id;
+
+  const product = await ProductModel.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    product,
+  });
+});
+
+// Get All Product
+exports.getAllProducts = catchErrorMiddleware(async (req, res, next) => {
+  const resultPerPage = 8;
+  const productsCount = await ProductModel.countDocuments();
+
+  const apiFeature = new ApiFeatures(ProductModel.find(), req.query)
     .search()
-    .filter()
-    .pagination(resultPerPage)
-    let products = await apiFeature.query
-    res.status(200).json({
-        success:true,
-        products,
-        productCount
-    })
-})
+    .filter();
 
+  let products = await apiFeature.query;
 
-// update product --Admin
+  let filteredProductsCount = products.length;
 
-const updateProduct = catchErrorMiddleware(async (req,res,next)=>{
+  apiFeature.pagination(resultPerPage);
 
-    let product = await ProductModel.findById(req.params.id)
+  products = await apiFeature.query;
 
-    if(!product){
-        return next(new ErrorHandler("Product not found", 404))
+  res.status(200).json({
+    success: true,
+    products,
+    productsCount,
+    resultPerPage,
+    filteredProductsCount,
+  });
+});
+
+// Get All Product (Admin)
+exports.getAdminProducts = catchErrorMiddleware(async (req, res, next) => {
+  const products = await ProductModel.find();
+
+  res.status(200).json({
+    success: true,
+    products,
+  });
+});
+
+// Get Product Details
+exports.getProductDetails = catchErrorMiddleware(async (req, res, next) => {
+  const product = await ProductModel.findById(req.params.id);
+
+  if (!product) {
+    return next(new ErrorHandler ("Product not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    product,
+  });
+});
+
+// Update Product -- Admin
+
+exports.updateProduct = catchErrorMiddleware(async (req, res, next) => {
+  let product = await ProductModel.findById(req.params.id);
+
+  if (!product) {
+    return next(new ErrorHandler("Product not found", 404));
+  }
+
+  // Images Start Here
+  let images = [];
+
+  if (typeof req.body.images === "string") {
+    images.push(req.body.images);
+  } else {
+    images = req.body.images;
+  }
+
+  if (images !== undefined) {
+    // Deleting Images From Cloudinary
+    for (let i = 0; i < product.images.length; i++) {
+      await cloudinary.v2.uploader.destroy(product.images[i].public_id);
     }
-    product = await ProductModel.findByIdAndUpdate(req.params.id, req.body,{
-        new:true,
-        runValidators:true,
-        useFindAndModify:false
-    })
-    res.status(200).json({
-        success:true,
-        product
-    })
-})
 
-// delete Product --Admin
+    const imagesLinks = [];
 
-const deleteProduct = catchErrorMiddleware(async (req,res,next)=>{
+    for (let i = 0; i < images.length; i++) {
+      const result = await cloudinary.v2.uploader.upload(images[i], {
+        folder: "products",
+      });
 
-    const product = await ProductModel.findById(req.params.id)
-
-
-    if(!product){
-        return next(new ErrorHandler("Product not found", 404))
+      imagesLinks.push({
+        public_id: result.public_id,
+        url: result.secure_url,
+      });
     }
 
-    await product.remove()
+    req.body.images = imagesLinks;
+  }
 
-    res.status(200).json({
-        success:true,
-        message:"Product Deleted"
-    })
-})
+  product = await ProductModel.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+    useFindAndModify: false,
+  });
 
+  res.status(200).json({
+    success: true,
+    product,
+  });
+});
 
-// get single product details
+// Delete Product
 
-const getSingleProduct = catchErrorMiddleware(async (req,res,next)=>{
+exports.deleteProduct = catchErrorMiddleware(async (req, res, next) => {
+  const product = await ProductModel.findById(req.params.id);
 
-    const product = await ProductModel.findById(req.params.id)
+  if (!product) {
+    return next(new ErrorHandler("Product not found", 404));
+  }
 
-    if(!product){
-        return next(new ErrorHandler("Product not found", 404))
+  // Deleting Images From Cloudinary
+  for (let i = 0; i < product.images.length; i++) {
+    await cloudinary.v2.uploader.destroy(product.images[i].public_id);
+  }
+
+  await product.remove();
+
+  res.status(200).json({
+    success: true,
+    message: "Product Delete Successfully",
+  });
+});
+
+// Create New Review or Update the review
+exports.createProductReview = catchErrorMiddleware(async (req, res, next) => {
+  const { rating, comment, productId } = req.body;
+
+  const review = {
+    user: req.user._id,
+    name: req.user.name,
+    rating: Number(rating),
+    comment,
+  };
+
+  const product = await ProductModel.findById(productId);
+
+  const isReviewed = product.reviews.find(
+    (rev) => rev.user.toString() === req.user._id.toString()
+  );
+
+  if (isReviewed) {
+    product.reviews.forEach((rev) => {
+      if (rev.user.toString() === req.user._id.toString())
+        (rev.rating = rating), (rev.comment = comment);
+    });
+  } else {
+    product.reviews.push(review);
+    product.numOfReviews = product.reviews.length;
+  }
+
+  let avg = 0;
+
+  product.reviews.forEach((rev) => {
+    avg += rev.rating;
+  });
+
+  product.ratings = avg / product.reviews.length;
+
+  await product.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    success: true,
+  });
+});
+
+// Get All Reviews of a product
+exports.getProductReviews =catchErrorMiddleware(async (req, res, next) => {
+  const product = await ProductModel.findById(req.query.id);
+
+  if (!product) {
+    return next(new ErrorHandler("Product not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    reviews: product.reviews,
+  });
+});
+
+// Delete Review
+exports.deleteReview = catchErrorMiddleware(async (req, res, next) => {
+  const product = await ProductModel.findById(req.query.productId);
+
+  if (!product) {
+    return next(new ErrorHandler("Product not found", 404));
+  }
+
+  const reviews = product.reviews.filter(
+    (rev) => rev._id.toString() !== req.query.id.toString()
+  );
+
+  let avg = 0;
+
+  reviews.forEach((rev) => {
+    avg += rev.rating;
+  });
+
+  let ratings = 0;
+
+  if (reviews.length === 0) {
+    ratings = 0;
+  } else {
+    ratings = avg / reviews.length;
+  }
+
+  const numOfReviews = reviews.length;
+
+  await ProductModel.findByIdAndUpdate(
+    req.query.productId,
+    {
+      reviews,
+      ratings,
+      numOfReviews,
+    },
+    {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
     }
+  );
 
-    res.status(200).json({
-        success:true,
-        product
-    })
-
-})
-
-
-module.exports={
-    createProduct,
-    getAllProducts,
-    updateProduct,
-    deleteProduct,
-    getSingleProduct
-}
+  res.status(200).json({
+    success: true,
+  });
+});
