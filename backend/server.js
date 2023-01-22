@@ -1,5 +1,5 @@
 const app = require("./app")
-
+const cloudinary = require("cloudinary");
 
 require("dotenv").config()
 const {connection} = require("./db")
@@ -13,6 +13,8 @@ process.on("uncaughtException", (err) => {
   });
 
 
+  
+
  const server = app.listen(process.env.port, async()=>{
     try{
         await connection
@@ -22,8 +24,14 @@ process.on("uncaughtException", (err) => {
         console.log("Error")
         console.log(err)
     }
-    console.log(`Server is runningnat port ${process.env.port}`)
+    console.log(`Server is running at port ${process.env.port}`)
 })
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // unhandled promise
 process.on("unhandledRejection", (err) => {
